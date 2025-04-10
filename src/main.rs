@@ -11,52 +11,79 @@ struct Player {
     is_accelerating: bool,
     is_breaking: bool,
 }
+#[derive(Default)]
+struct Game {
+    player: Player,
+    rl: RaylibHandle,
+    thread: RaylibThread,
+    width: f32,
+    height: f32,
+    half_width: f32,
+    half_height: f32,
+
+
+}
 const PLAYER_SPEED: f32 = 50f32;
 const PLAYER_ROTATION_SPEED: f32 = 100f32;
 const SHIP_HEIGHT: f32 = 10f32 / 0.363970f32;
 const ZERO_SPEED: f32 = 0f32;
 const PHYSICS_TIME: f32 = 0.02f32;
 
+thread_local!(static GAME: RefCell<Game> = RefCell::new(Game::default()));
+
 fn main() {
     let mut player = Player::default();
-    let (mut rl, thread) = raylib::init().size(640, 480).title("Space Rust").build();
+    let (rl, thread) = raylib::init().size(640, 480).title("Space Rust").build();
+    GAME.with(|game| {
+        game.rl = rl;
+        game.thread = thread;
 
-    let (mut width, mut height) = (rl.get_screen_width() as f32, rl.get_screen_height() as f32);
-    let half_width = width / 2.0;
-    let half_height = height / 2.0;
+        game.width = game.rl.get_screen_width() as f32;
+        game.height = game.rl.get_screen_height() as f32;
 
-    player.position = Vector2::new(half_width, half_height - (SHIP_HEIGHT / 2f32));
-    player.acceleration = 0f32;
-    let mut frame_time_accumulator = 0f32;
+        game.half_width = game.width / 2.0;
+        game.half_height = game.height / 2.0;
 
-    while !rl.window_should_close() {
-        // Tick
-        if rl.is_window_resized() {
-            width = rl.get_screen_width() as f32;
-            height = rl.get_screen_height() as f32;
+        player.position = Vector2::new(half_width, half_height - (SHIP_HEIGHT / 2f32));
+        player.acceleration = 0f32;
+        let mut frame_time_accumulator = 0f32;
+
+        while !game.rl.window_should_close() {
+            update();
         }
-        frame_time_accumulator += rl.get_frame_time();
+                
+    });
+}
+fn update() {
+
+    GAME.with(|game| {
+        // Tick
+        if game.game.rl.is_window_resized() {
+            width = game.rl.get_screen_width() as f32;
+            height = game.rl.get_screen_height() as f32;
+        }
+        frame_time_accumulator += game.rl.get_frame_time();
 
         // Input
 
-        if rl.is_key_down(KeyboardKey::KEY_LEFT) {
+        if game.rl.is_key_down(KeyboardKey::KEY_LEFT) {
             player.is_turn_left = true;
         } else {
             player.is_turn_left = false;
         }
-        if rl.is_key_down(KeyboardKey::KEY_RIGHT) {
+        if game.rl.is_key_down(KeyboardKey::KEY_RIGHT) {
             player.is_turn_right = true;
         } else {
             player.is_turn_right = false;
         }
 
-        if rl.is_key_down(KeyboardKey::KEY_UP) {
+        if game.rl.is_key_down(KeyboardKey::KEY_UP) {
             player.is_accelerating = true;
         } else {
             player.is_accelerating = false;
         }
 
-        if rl.is_key_down(KeyboardKey::KEY_DOWN) {
+        if game.rl.is_key_down(KeyboardKey::KEY_DOWN) {
             player.is_breaking = true;
         } else {
             player.is_breaking = false;
@@ -120,7 +147,7 @@ fn main() {
             }
         }
         // Draw
-        let mut d = rl.begin_drawing(&thread);
+        let mut d = game.rl.begin_drawing(&thread);
 
         d.clear_background(Color::WHITE);
 
@@ -149,5 +176,5 @@ fn main() {
 
         // Draw Game
         d.draw_triangle(v1, v2, v3, Color::GRAY);
-    }
+    });
 }
